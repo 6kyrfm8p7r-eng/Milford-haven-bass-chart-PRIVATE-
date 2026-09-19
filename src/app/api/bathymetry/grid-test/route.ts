@@ -5,6 +5,10 @@ import {
   fetchEmodnetBathymetryCoverage,
 } from "@/services/providers/emodnetGrid";
 
+import {
+  decodeBathymetryGeoTiff,
+} from "@/lib/geotiffBathymetry";
+
 
 export const runtime = "nodejs";
 
@@ -13,12 +17,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    /*
-     * Small test box inside Milford Haven.
-     *
-     * Deliberately small so we're proving the WCS connection
-     * without requesting the entire Pembrokeshire dataset.
-     */
     const bounds = {
       west: -5.12,
       south: 51.68,
@@ -49,82 +47,106 @@ export async function GET() {
       });
 
 
-    const elapsedMilliseconds =
+    const downloadMilliseconds =
       Date.now() - startedAt;
 
 
+    const decodeStartedAt =
+      Date.now();
+
+
+    const grid =
+      await decodeBathymetryGeoTiff(
+        buffer,
+      );
+
+
+    const decodeMilliseconds =
+      Date.now() - decodeStartedAt;
+
+
     /*
-     * TIFF files normally begin with one of:
+     * Only return a small sample of cells.
      *
-     * 49 49 2A 00  -> little-endian TIFF
-     * 4D 4D 00 2A  -> big-endian TIFF
-     *
-     * We expose the first four bytes purely as a diagnostic.
+     * The complete raster remains server-side. Once we have
+     * verified the values, a later endpoint will transform the
+     * grid into chart-ready depth bands rather than shipping the
+     * raw raster to the browser.
      */
-    const firstBytes =
-      Array.from(
-        new Uint8Array(
-          buffer.slice(0, 4),
-        ),
-      );
-
-
-    const isTiff =
-      (
-        firstBytes[0] === 0x49 &&
-        firstBytes[1] === 0x49 &&
-        firstBytes[2] === 0x2a &&
-        firstBytes[3] === 0x00
-      ) ||
-      (
-        firstBytes[0] === 0x4d &&
-        firstBytes[1] === 0x4d &&
-        firstBytes[2] === 0x00 &&
-        firstBytes[3] === 0x2a
-      );
+    const sampleValues =
+      grid.values
+        .filter(
+          (
+            value,
+          ): value is number =>
+            value !== null,
+        )
+        .slice(0, 20);
 
 
     return NextResponse.json({
       ok: true,
 
       test:
-        "EMODnet WCS bathymetry coverage",
+        "EMODnet decoded bathymetry grid",
 
-      bounds,
+      source: {
+        coverage:
+          request.coverage,
 
-      resolutionDegrees,
+        coordinateReferenceSystem:
+          request.coordinateReferenceSystem,
 
-      coverage:
-        request.coverage,
+        format:
+          request.format,
 
-      coordinateReferenceSystem:
-        request.coordinateReferenceSystem,
-
-      format:
-        request.format,
-
-      response: {
         bytes:
           buffer.byteLength,
-
-        firstBytes,
-
-        isTiff,
-
-        elapsedMilliseconds,
       },
 
-      message:
-        isTiff
-          ? "Valid TIFF signature received from EMODnet."
-          : "A response was received, but it does not have a standard TIFF signature.",
+      request: {
+        bounds,
+        resolutionDegrees,
+      },
+
+      grid: {
+        width:
+          grid.width,
+
+        height:
+          grid.height,
+
+        cellCount:
+          grid.width *
+          grid.height,
+
+        bounds:
+          grid.bounds,
+      },
+
+      statistics:
+        grid.statistics,
+
+      sampleElevationMetres:
+        sampleValues,
+
+      timing: {
+        downloadMilliseconds,
+        decodeMilliseconds,
+
+        totalMilliseconds:
+          Date.now() - startedAt,
+      },
+
+      interpretation:
+        "Negative elevations represent submerged seabed. Their absolute value is approximately the water depth in metres.",
 
       disclaimer:
         "Fishing analysis only. Not for navigation.",
     });
   } catch (error) {
     console.error(
-      "EMODnet grid test failed:",
+      "EMODnet decoded grid test failed:",
       error,
     );
 
@@ -136,7 +158,7 @@ export async function GET() {
         error:
           error instanceof Error
             ? error.message
-            : "Unknown EMODnet grid error.",
+            : "Unknown bathymetry decoding error.",
 
         disclaimer:
           "Fishing analysis only. Not for navigation.",
