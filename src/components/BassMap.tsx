@@ -14,6 +14,9 @@ import { EMODNET_BATHYMETRY } from "@/services/providers/emodnetBathymetry";
 const EMODNET_BATHYMETRY_TILES =
   "https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png";
 
+const OPENFREEMAP_VECTOR_SOURCE =
+  "https://tiles.openfreemap.org/planet";
+
 
 interface DepthApiResponse {
   ok: boolean;
@@ -230,30 +233,41 @@ export default function BassMap() {
                 EMODNET_BATHYMETRY.attribution,
             },
 
-            openStreetMap: {
-              type: "raster",
-
-              tiles: [
-                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-              ],
-
-              tileSize: 256,
+            openMapTiles: {
+              type: "vector",
+              url:
+                OPENFREEMAP_VECTOR_SOURCE,
 
               attribution:
-                '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+                "© OpenStreetMap contributors · OpenFreeMap",
             },
           },
 
           layers: [
+            // ------------------------------------------------
+            // BASE
+            // ------------------------------------------------
+
             {
               id: "background",
               type: "background",
 
               paint: {
+                /*
+                 * This is also our fallback land colour.
+                 */
                 "background-color":
-                  "#07131c",
+                  "#173c32",
               },
             },
+
+
+            // ------------------------------------------------
+            // EMODNET
+            //
+            // The bathymetry raster is rendered first.
+            // Real land geometry is then placed above it.
+            // ------------------------------------------------
 
             {
               id: "bathymetry",
@@ -262,24 +276,154 @@ export default function BassMap() {
 
               paint: {
                 "raster-opacity": 1,
-                "raster-saturation": -0.15,
-                "raster-contrast": 0.08,
-                "raster-brightness-min": 0.08,
-                "raster-brightness-max": 0.88,
+                "raster-saturation": -0.08,
+                "raster-contrast": 0.12,
+                "raster-brightness-min": 0.1,
+                "raster-brightness-max": 0.9,
               },
             },
 
+
+            // ------------------------------------------------
+            // LAND MASK
+            //
+            // OpenMapTiles supplies water polygons rather than
+            // requiring us to invent a coastline.
+            //
+            // We use those real water polygons as the marine
+            // geography reference and place the surrounding
+            // terrestrial appearance above the bathymetry.
+            // ------------------------------------------------
+
             {
-              id: "geographic-reference",
-              type: "raster",
-              source: "openStreetMap",
+              id: "water-geography",
+              type: "fill",
+              source: "openMapTiles",
+              "source-layer": "water",
 
               paint: {
-                "raster-opacity": 0.22,
-                "raster-saturation": -0.85,
-                "raster-contrast": 0.18,
-                "raster-brightness-min": 0.18,
-                "raster-brightness-max": 0.82,
+                /*
+                 * Almost transparent.
+                 *
+                 * EMODnet remains visually dominant over water,
+                 * while this layer gives us real water geometry
+                 * for the coastline.
+                 */
+                "fill-color":
+                  "#5bb6d6",
+
+                "fill-opacity": 0.04,
+              },
+            },
+
+
+            // ------------------------------------------------
+            // LAND COVER
+            // ------------------------------------------------
+
+            {
+              id: "landcover",
+              type: "fill",
+              source: "openMapTiles",
+              "source-layer": "landcover",
+
+              paint: {
+                "fill-color": [
+                  "match",
+                  ["get", "class"],
+
+                  "wood",
+                  "#12372c",
+
+                  "grass",
+                  "#1b4638",
+
+                  "farmland",
+                  "#1d4437",
+
+                  "rock",
+                  "#29483e",
+
+                  "sand",
+                  "#40594a",
+
+                  "wetland",
+                  "#173f36",
+
+                  "#193f34",
+                ],
+
+                "fill-opacity": 0.72,
+              },
+            },
+
+
+            // ------------------------------------------------
+            // LAND USE
+            // ------------------------------------------------
+
+            {
+              id: "landuse",
+              type: "fill",
+              source: "openMapTiles",
+              "source-layer": "landuse",
+
+              paint: {
+                "fill-color": [
+                  "match",
+                  ["get", "class"],
+
+                  "residential",
+                  "#23483d",
+
+                  "industrial",
+                  "#294b42",
+
+                  "commercial",
+                  "#294b42",
+
+                  "military",
+                  "#34483d",
+
+                  "#1d4237",
+                ],
+
+                "fill-opacity": 0.48,
+              },
+            },
+
+
+            // ------------------------------------------------
+            // COASTLINE / WATER EDGE
+            //
+            // The water polygons themselves provide the real
+            // geographic boundary.
+            // ------------------------------------------------
+
+            {
+              id: "water-edge",
+              type: "line",
+              source: "openMapTiles",
+              "source-layer": "water",
+
+              paint: {
+                "line-color":
+                  "rgba(169, 213, 210, 0.52)",
+
+                "line-width": [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+
+                  8,
+                  0.45,
+
+                  12,
+                  0.85,
+
+                  16,
+                  1.2,
+                ],
               },
             },
           ],
@@ -354,10 +498,6 @@ export default function BassMap() {
           event.lngLat.lat;
 
 
-        /*
-         * Cancel an unfinished request if the user taps
-         * somewhere else before it completes.
-         */
         activeController?.abort();
 
         const controller =
@@ -413,9 +553,6 @@ export default function BassMap() {
               DepthApiResponse;
 
 
-          /*
-           * Ignore a response belonging to an older tap.
-           */
           if (
             controller !==
             activeController
