@@ -5,7 +5,7 @@ import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { REGION } from "@/config/region";
+import { MILFORD_HAVEN_REGION } from "@/config/region";
 
 export default function BassMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -15,6 +15,8 @@ export default function BassMap() {
     if (!containerRef.current || mapRef.current) {
       return;
     }
+
+    const region = MILFORD_HAVEN_REGION;
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -59,14 +61,18 @@ export default function BassMap() {
         ],
       },
 
-      center: [REGION.center.longitude, REGION.center.latitude],
-      zoom: REGION.defaultZoom,
-      minZoom: REGION.minZoom,
-      maxZoom: REGION.maxZoom,
+      center: [
+        region.centre.longitude,
+        region.centre.latitude,
+      ],
+
+      zoom: region.defaultZoom,
+      minZoom: region.minZoom,
+      maxZoom: region.maxZoom,
 
       maxBounds: [
-        [REGION.bounds.west, REGION.bounds.south],
-        [REGION.bounds.east, REGION.bounds.north],
+        [region.bounds.west, region.bounds.south],
+        [region.bounds.east, region.bounds.north],
       ],
 
       attributionControl: false,
