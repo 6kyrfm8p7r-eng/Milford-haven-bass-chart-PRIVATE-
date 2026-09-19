@@ -8,11 +8,7 @@ import maplibregl, {
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { MILFORD_HAVEN_REGION } from "@/config/region";
-import { EMODNET_BATHYMETRY } from "@/services/providers/emodnetBathymetry";
 
-
-const EMODNET_BATHYMETRY_TILES =
-  "https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png";
 
 const OPENFREEMAP_VECTOR_SOURCE =
   "https://tiles.openfreemap.org/planet";
@@ -42,9 +38,7 @@ interface DepthApiResponse {
 }
 
 
-function escapeHtml(
-  value: string,
-): string {
+function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -82,11 +76,8 @@ function loadingPopupHtml(): string {
 }
 
 
-function depthPopupHtml(
-  data: DepthApiResponse,
-): string {
-  const depth =
-    data.depth?.metres;
+function depthPopupHtml(data: DepthApiResponse): string {
+  const depth = data.depth?.metres;
 
   if (
     typeof depth !== "number" ||
@@ -159,9 +150,7 @@ function depthPopupHtml(
 }
 
 
-function errorPopupHtml(
-  message: string,
-): string {
+function errorPopupHtml(message: string): string {
   return `
     <div style="
       min-width:170px;
@@ -220,19 +209,6 @@ export default function BassMap() {
           version: 8,
 
           sources: {
-            bathymetry: {
-              type: "raster",
-
-              tiles: [
-                EMODNET_BATHYMETRY_TILES,
-              ],
-
-              tileSize: 256,
-
-              attribution:
-                EMODNET_BATHYMETRY.attribution,
-            },
-
             openMapTiles: {
               type: "vector",
               url:
@@ -245,17 +221,17 @@ export default function BassMap() {
 
           layers: [
             // ------------------------------------------------
-            // BASE
+            // LAND
+            //
+            // Everything begins as land. Real water polygons
+            // are then drawn above it.
             // ------------------------------------------------
 
             {
-              id: "background",
+              id: "land-base",
               type: "background",
 
               paint: {
-                /*
-                 * This is also our fallback land colour.
-                 */
                 "background-color":
                   "#173c32",
               },
@@ -263,66 +239,36 @@ export default function BassMap() {
 
 
             // ------------------------------------------------
-            // EMODNET
+            // WATER
             //
-            // The bathymetry raster is rendered first.
-            // Real land geometry is then placed above it.
+            // OpenMapTiles water polygons provide the actual
+            // coastline and inland-water geometry.
+            //
+            // This is intentionally a simple chart foundation.
+            // Bathymetric depth styling comes next.
             // ------------------------------------------------
 
             {
-              id: "bathymetry",
-              type: "raster",
-              source: "bathymetry",
-
-              paint: {
-                "raster-opacity": 1,
-                "raster-saturation": -0.08,
-                "raster-contrast": 0.12,
-                "raster-brightness-min": 0.1,
-                "raster-brightness-max": 0.9,
-              },
-            },
-
-
-            // ------------------------------------------------
-            // LAND MASK
-            //
-            // OpenMapTiles supplies water polygons rather than
-            // requiring us to invent a coastline.
-            //
-            // We use those real water polygons as the marine
-            // geography reference and place the surrounding
-            // terrestrial appearance above the bathymetry.
-            // ------------------------------------------------
-
-            {
-              id: "water-geography",
+              id: "water-base",
               type: "fill",
               source: "openMapTiles",
               "source-layer": "water",
 
               paint: {
-                /*
-                 * Almost transparent.
-                 *
-                 * EMODnet remains visually dominant over water,
-                 * while this layer gives us real water geometry
-                 * for the coastline.
-                 */
                 "fill-color":
-                  "#5bb6d6",
+                  "#79b7c7",
 
-                "fill-opacity": 0.04,
+                "fill-opacity": 1,
               },
             },
 
 
             // ------------------------------------------------
-            // LAND COVER
+            // SUBTLE LAND DETAIL
             // ------------------------------------------------
 
             {
-              id: "landcover",
+              id: "landcover-detail",
               type: "fill",
               source: "openMapTiles",
               "source-layer": "landcover",
@@ -333,37 +279,37 @@ export default function BassMap() {
                   ["get", "class"],
 
                   "wood",
-                  "#12372c",
+                  "#103329",
 
                   "grass",
-                  "#1b4638",
+                  "#1c493a",
 
                   "farmland",
-                  "#1d4437",
+                  "#20483a",
 
                   "rock",
-                  "#29483e",
+                  "#365149",
 
                   "sand",
-                  "#40594a",
+                  "#626552",
 
                   "wetland",
-                  "#173f36",
+                  "#17453b",
 
-                  "#193f34",
+                  "#1c4438",
                 ],
 
-                "fill-opacity": 0.72,
+                "fill-opacity": 0.38,
               },
             },
 
 
             // ------------------------------------------------
-            // LAND USE
+            // LAND USE DETAIL
             // ------------------------------------------------
 
             {
-              id: "landuse",
+              id: "landuse-detail",
               type: "fill",
               source: "openMapTiles",
               "source-layer": "landuse",
@@ -374,41 +320,67 @@ export default function BassMap() {
                   ["get", "class"],
 
                   "residential",
-                  "#23483d",
+                  "#294c42",
 
                   "industrial",
-                  "#294b42",
+                  "#334f47",
 
                   "commercial",
-                  "#294b42",
+                  "#304d44",
 
                   "military",
-                  "#34483d",
+                  "#3c5044",
 
-                  "#1d4237",
+                  "#24473d",
                 ],
 
-                "fill-opacity": 0.48,
+                "fill-opacity": 0.24,
               },
             },
 
 
             // ------------------------------------------------
-            // COASTLINE / WATER EDGE
+            // WATER AGAIN
             //
-            // The water polygons themselves provide the real
-            // geographic boundary.
+            // Redrawing water above terrestrial detail ensures
+            // no landcover/landuse polygon can visually leak
+            // into the sea.
             // ------------------------------------------------
 
             {
-              id: "water-edge",
-              type: "line",
+              id: "water-clean",
+              type: "fill",
               source: "openMapTiles",
               "source-layer": "water",
 
               paint: {
+                "fill-color":
+                  "#79b7c7",
+
+                "fill-opacity": 1,
+              },
+            },
+
+
+            // ------------------------------------------------
+            // COASTLINE
+            // ------------------------------------------------
+
+            {
+              id: "coastline",
+              type: "line",
+              source: "openMapTiles",
+              "source-layer": "water",
+
+              filter: [
+                "==",
+                ["get", "class"],
+                "ocean",
+              ],
+
+              paint: {
                 "line-color":
-                  "rgba(169, 213, 210, 0.52)",
+                  "rgba(190, 225, 218, 0.72)",
 
                 "line-width": [
                   "interpolate",
@@ -416,13 +388,13 @@ export default function BassMap() {
                   ["zoom"],
 
                   8,
-                  0.45,
+                  0.55,
 
                   12,
-                  0.85,
+                  0.9,
 
                   16,
-                  1.2,
+                  1.3,
                 ],
               },
             },
@@ -478,7 +450,7 @@ export default function BassMap() {
 
 
     // --------------------------------------------------------
-    // TAP / CLICK FOR DEPTH
+    // TAP / CLICK FOR LIVE EMODNET DEPTH
     // --------------------------------------------------------
 
     let activeController:
