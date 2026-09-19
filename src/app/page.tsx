@@ -1,3 +1,5 @@
+import BassMap from "@/components/BassMap";
+
 const intelligenceItems = [
   { label: "Tide", value: "Awaiting live data" },
   { label: "Sea", value: "Awaiting live data" },
@@ -10,16 +12,19 @@ export default function HomePage() {
     <main className="app-shell">
       <section
         style={{
-          minHeight: "100dvh",
+          height: "100dvh",
           display: "grid",
           gridTemplateRows: "auto 1fr auto",
+          overflow: "hidden",
         }}
       >
         <header
           style={{
-            padding: "16px 18px",
+            position: "relative",
+            zIndex: 20,
+            padding: "14px 18px",
             borderBottom: "1px solid var(--border)",
-            background: "rgba(7, 19, 28, 0.92)",
+            background: "rgba(7, 19, 28, 0.96)",
           }}
         >
           <div
@@ -34,7 +39,7 @@ export default function HomePage() {
               <div
                 style={{
                   color: "var(--brass)",
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 700,
                   letterSpacing: "0.16em",
                   textTransform: "uppercase",
@@ -46,7 +51,7 @@ export default function HomePage() {
               <h1
                 style={{
                   margin: "3px 0 0",
-                  fontSize: 20,
+                  fontSize: 19,
                   lineHeight: 1.1,
                   fontWeight: 700,
                 }}
@@ -74,134 +79,74 @@ export default function HomePage() {
             position: "relative",
             minHeight: 0,
             overflow: "hidden",
-            background:
-              "radial-gradient(circle at 45% 40%, rgba(29, 111, 138, 0.18), transparent 34%), #081722",
+            background: "#07131c",
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              opacity: 0.22,
-              backgroundImage:
-                "linear-gradient(rgba(174,187,195,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(174,187,195,.09) 1px, transparent 1px)",
-              backgroundSize: "42px 42px",
-            }}
-          />
+          <BassMap />
 
           <div
             style={{
               position: "absolute",
-              top: 18,
-              left: 18,
-              right: 18,
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
+              zIndex: 10,
+              top: 14,
+              left: 14,
+              maxWidth: "calc(100% - 90px)",
+              padding: "8px 11px",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-small)",
+              background: "rgba(7, 19, 28, 0.84)",
+              backdropFilter: "blur(10px)",
+              color: "var(--text-secondary)",
+              fontSize: 11,
               pointerEvents: "none",
+              boxShadow: "0 6px 20px rgba(0,0,0,.18)",
             }}
           >
-            <div
-              style={{
-                padding: "9px 12px",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-small)",
-                background: "rgba(7, 19, 28, 0.82)",
-                backdropFilter: "blur(10px)",
-                fontSize: 12,
-                color: "var(--text-secondary)",
-              }}
-            >
-              Milford Haven · Dale · St Ann&apos;s Head · Freshwater West
-            </div>
-
-            <div
-              style={{
-                padding: "9px 12px",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-small)",
-                background: "rgba(7, 19, 28, 0.82)",
-                backdropFilter: "blur(10px)",
-                fontSize: 12,
-                color: "var(--chart-blue-bright)",
-                fontWeight: 700,
-              }}
-            >
-              HISTORY
-            </div>
+            Milford Haven · Dale · St Ann&apos;s Head · Freshwater West
           </div>
 
           <div
             style={{
               position: "absolute",
-              inset: 0,
-              display: "grid",
-              placeItems: "center",
-              padding: 24,
-              textAlign: "center",
+              zIndex: 10,
+              top: 58,
+              left: 14,
+              padding: "7px 10px",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-small)",
+              background: "rgba(7, 19, 28, 0.84)",
+              backdropFilter: "blur(10px)",
+              color: "var(--chart-blue-bright)",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              pointerEvents: "none",
             }}
           >
-            <div style={{ maxWidth: 430 }}>
-              <div
-                style={{
-                  width: 72,
-                  height: 72,
-                  margin: "0 auto 18px",
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: "50%",
-                  border: "1px solid var(--border-strong)",
-                  background: "rgba(29, 111, 138, 0.12)",
-                  color: "var(--chart-blue-bright)",
-                  fontSize: 27,
-                }}
-              >
-                ≋
-              </div>
-
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 22,
-                  fontWeight: 650,
-                }}
-              >
-                Chart engine ready
-              </h2>
-
-              <p
-                style={{
-                  margin: "8px auto 0",
-                  color: "var(--text-secondary)",
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                }}
-              >
-                The live MapLibre chart, bathymetry, catch markers and bass
-                prediction layers will occupy this workspace.
-              </p>
-            </div>
+            HISTORY
           </div>
 
           <aside
             style={{
               position: "absolute",
-              right: 18,
-              bottom: 18,
-              width: "min(300px, calc(100% - 36px))",
-              padding: 14,
+              zIndex: 10,
+              right: 14,
+              bottom: 14,
+              width: "min(300px, calc(100% - 28px))",
+              padding: 12,
               border: "1px solid var(--border)",
               borderRadius: "var(--radius-medium)",
-              background: "var(--panel)",
+              background: "rgba(7, 19, 28, 0.9)",
               backdropFilter: "blur(14px)",
-              boxShadow: "0 14px 40px rgba(0,0,0,.24)",
+              boxShadow: "0 14px 40px rgba(0,0,0,.3)",
+              pointerEvents: "none",
             }}
           >
             <div
               style={{
-                marginBottom: 10,
+                marginBottom: 9,
                 color: "var(--text-muted)",
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: 700,
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
@@ -214,22 +159,22 @@ export default function HomePage() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: 8,
+                gap: 7,
               }}
             >
               {intelligenceItems.map((item) => (
                 <div
                   key={item.label}
                   style={{
-                    padding: 10,
+                    padding: "8px 9px",
                     borderRadius: "var(--radius-small)",
-                    background: "rgba(255,255,255,.035)",
+                    background: "rgba(255,255,255,.04)",
                   }}
                 >
                   <div
                     style={{
                       color: "var(--text-primary)",
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 650,
                     }}
                   >
@@ -240,7 +185,7 @@ export default function HomePage() {
                     style={{
                       marginTop: 2,
                       color: "var(--text-muted)",
-                      fontSize: 10,
+                      fontSize: 9,
                     }}
                   >
                     {item.value}
@@ -254,6 +199,8 @@ export default function HomePage() {
         <nav
           aria-label="Primary"
           style={{
+            position: "relative",
+            zIndex: 20,
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             borderTop: "1px solid var(--border)",
@@ -262,6 +209,7 @@ export default function HomePage() {
         >
           <button
             type="button"
+            aria-pressed="true"
             style={{
               minHeight: 58,
               border: 0,
@@ -278,6 +226,7 @@ export default function HomePage() {
 
           <button
             type="button"
+            aria-pressed="false"
             style={{
               minHeight: 58,
               border: 0,
