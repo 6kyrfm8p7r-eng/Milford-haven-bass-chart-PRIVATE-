@@ -6,6 +6,10 @@ import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { MILFORD_HAVEN_REGION } from "@/config/region";
+import { EMODNET_BATHYMETRY } from "@/services/providers/emodnetBathymetry";
+
+const EMODNET_BATHYMETRY_TILES =
+  "https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png";
 
 export default function BassMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -25,6 +29,13 @@ export default function BassMap() {
         version: 8,
 
         sources: {
+          bathymetry: {
+            type: "raster",
+            tiles: [EMODNET_BATHYMETRY_TILES],
+            tileSize: 256,
+            attribution: EMODNET_BATHYMETRY.attribution,
+          },
+
           openStreetMap: {
             type: "raster",
             tiles: [
@@ -44,18 +55,30 @@ export default function BassMap() {
               "background-color": "#07131c",
             },
           },
+
           {
-            id: "openstreetmap",
+            id: "bathymetry",
+            type: "raster",
+            source: "bathymetry",
+            paint: {
+              "raster-opacity": 1,
+              "raster-saturation": -0.15,
+              "raster-contrast": 0.08,
+              "raster-brightness-min": 0.08,
+              "raster-brightness-max": 0.88,
+            },
+          },
+
+          {
+            id: "geographic-reference",
             type: "raster",
             source: "openStreetMap",
-            minzoom: 0,
-            maxzoom: 19,
             paint: {
-              "raster-opacity": 0.72,
-              "raster-saturation": -0.55,
-              "raster-contrast": 0.12,
-              "raster-brightness-min": 0.12,
-              "raster-brightness-max": 0.78,
+              "raster-opacity": 0.22,
+              "raster-saturation": -0.85,
+              "raster-contrast": 0.18,
+              "raster-brightness-min": 0.18,
+              "raster-brightness-max": 0.82,
             },
           },
         ],
@@ -105,7 +128,7 @@ export default function BassMap() {
   return (
     <div
       ref={containerRef}
-      aria-label="Interactive bass fishing chart"
+      aria-label="Interactive Pembrokeshire bass fishing chart"
       style={{
         position: "absolute",
         inset: 0,
