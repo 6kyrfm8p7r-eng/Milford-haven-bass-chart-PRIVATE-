@@ -19,8 +19,16 @@ import {
 //
 // The map tiles are for VISUALISATION.
 //
-// This service retrieves NUMERICAL DTM depth information that
-// can later feed:
+// This service retrieves NUMERICAL DTM elevation information
+// and converts underwater seabed elevation into positive water
+// depth for use by the fishing application.
+//
+// Example:
+//
+//   EMODnet elevation: -24.6 m
+//   App water depth:    24.6 m
+//
+// This can later feed:
 //
 // - depth labels
 // - contours
@@ -133,6 +141,30 @@ function validateCoordinate(
 }
 
 
+/**
+ * Convert EMODnet seabed elevation into the application's
+ * positive-water-depth convention.
+ *
+ * EMODnet bathymetric elevations below the vertical datum are
+ * represented as negative values.
+ *
+ * Example:
+ *
+ *   -32.4 m elevation -> 32.4 m water depth
+ *
+ * Positive elevation represents terrain above the datum and is
+ * therefore clamped to zero water depth.
+ */
+function elevationToWaterDepth(
+  elevationMetres: number,
+): number {
+  return Math.max(
+    0,
+    -elevationMetres,
+  );
+}
+
+
 export function buildEMODnetDepthSampleURL(
   position: Coordinate,
 ): URL {
@@ -169,26 +201,72 @@ export function normaliseEMODnetDepthSample(
   position: Coordinate,
   raw: EMODnetDepthSampleResponse,
 ): EMODnetDepthResult {
-  const averageDepthMetres =
+  const rawAverageElevation =
     finiteNumber(raw.avg);
 
-  if (averageDepthMetres === undefined) {
+  if (rawAverageElevation === undefined) {
     throw new Error(
-      "EMODnet returned no usable average depth.",
+      "EMODnet returned no usable average bathymetry value.",
     );
   }
 
-  if (averageDepthMetres < 0) {
-    throw new Error(
-      "EMODnet returned an unexpected negative water depth.",
-    );
-  }
 
-  const minimumDepthMetres =
+  // ----------------------------------------------------------
+  // Average depth
+  // ----------------------------------------------------------
+
+  const averageDepthMetres =
+    elevationToWaterDepth(
+      rawAverageElevation,
+    );
+
+
+  // ----------------------------------------------------------
+  // Minimum / maximum
+  // ----------------------------------------------------------
+  //
+  // Important:
+  //
+  // Elevation:
+  //
+  //   min = -40
+  //   max = -20
+  //
+  // becomes water depth:
+  //
+  //   minimum depth = 20
+  //   maximum depth = 40
+  //
+  // Therefore the source min/max reverse when converted from
+  // negative elevation to positive water depth.
+  // ----------------------------------------------------------
+
+  const rawMinimumElevation =
     finiteNumber(raw.min);
 
-  const maximumDepthMetres =
+  const rawMaximumElevation =
     finiteNumber(raw.max);
+
+
+  const minimumDepthMetres =
+    rawMaximumElevation !== undefined
+      ? elevationToWaterDepth(
+          rawMaximumElevation,
+        )
+      : undefined;
+
+
+  const maximumDepthMetres =
+    rawMinimumElevation !== undefined
+      ? elevationToWaterDepth(
+          rawMinimumElevation,
+        )
+      : undefined;
+
+
+  // ----------------------------------------------------------
+  // Statistics
+  // ----------------------------------------------------------
 
   const standardDeviationMetres =
     finiteNumber(raw.stdev);
@@ -196,40 +274,67 @@ export function normaliseEMODnetDepthSample(
   const elementarySurfaces =
     finiteNumber(raw.elementarySurfaces);
 
-  const smoothedDepthMetres =
+
+  // ----------------------------------------------------------
+  // Smoothed elevation
+  // ----------------------------------------------------------
+
+  const rawSmoothedElevation =
     finiteNumber(raw.smoothed);
 
+  const smoothedDepthMetres =
+    rawSmoothedElevation !== undefined
+      ? elevationToWaterDepth(
+          rawSmoothedElevation,
+        )
+      : undefined;
+
+
+  /*
+   * Offset is a difference rather than an absolute elevation.
+   * Keep the source value unchanged rather than incorrectly
+   * treating it as a depth.
+   */
   const smoothedOffsetMetres =
     finiteNumber(raw.smoothedOffset);
+
 
   const retrievedAt =
     new Date().toISOString();
 
+
+  // ----------------------------------------------------------
+  // Normalised bathymetry sample
+  // ----------------------------------------------------------
+
   const sample: BathymetrySample = {
     position,
 
-    depthMetres: averageDepthMetres,
+    depthMetres:
+      averageDepthMetres,
 
     verticalDatum: "LAT",
 
-    source: "EMODnet Bathymetry DTM",
+    source:
+      "EMODnet Bathymetry DTM",
 
     /*
-     * Do not hard-code a resolution here.
+     * Do not invent a fixed source resolution here.
      *
-     * EMODnet combines source datasets and may provide
-     * higher-resolution regional products. Resolution should
-     * be attached when we know which dataset/grid supplied
-     * the analysis.
+     * EMODnet combines multiple datasets. Resolution should be
+     * attached when we know the actual grid/source used for the
+     * requested location.
      */
     resolutionMetres: undefined,
 
     /*
-     * We cannot infer interpolation solely from the point
-     * response, so leave this unknown rather than inventing it.
+     * The point response alone does not give us enough
+     * information to state confidently whether this particular
+     * value was interpolated.
      */
     interpolated: undefined,
   };
+
 
   return {
     sample,
@@ -277,16 +382,21 @@ export async function getEMODnetDepth(
   const url =
     buildEMODnetDepthSampleURL(position);
 
-  const response = await fetch(
-    url,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
+
+  const response =
+    await fetch(
+      url,
+      {
+        method: "GET",
+
+        headers: {
+          Accept: "application/json",
+        },
+
+        signal,
       },
-      signal,
-    },
-  );
+    );
+
 
   if (!response.ok) {
     throw new Error(
@@ -294,9 +404,11 @@ export async function getEMODnetDepth(
     );
   }
 
+
   const raw =
     (await response.json()) as
       EMODnetDepthSampleResponse;
+
 
   return normaliseEMODnetDepthSample(
     position,
